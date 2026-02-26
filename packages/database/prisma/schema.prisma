@@ -1,0 +1,85 @@
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+generator client {
+    provider = "prisma-client-js"
+    output   = "../../../node_modules/.prisma/client"
+}
+
+enum UserRole {
+    ADMIN
+    SECURITY_ENGINEER
+    VIEWER
+    AUDITOR
+}
+
+model User {
+    id        String   @id @default(uuid())
+    email     String   @unique
+    password  String
+    role      UserRole @default(VIEWER)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    scans     Scan[]
+}
+
+model Asset {
+    id          String   @id @default(uuid())
+    domain      String
+    ip          String?
+    ports       Int[]
+    services    String[]
+    isMonitored Boolean  @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    scans       Scan[]
+}
+
+enum ScanStatus {
+    PENDING
+    IN_PROGRESS
+    COMPLETED
+    FAILED
+}
+
+model Scan {
+    id              String          @id @default(uuid())
+    assetId         String
+    asset           Asset           @relation(fields: [assetId], references: [id])
+    triggeredById   String?
+    triggeredBy     User?           @relation(fields: [triggeredById], references: [id])
+    status          ScanStatus      @default(PENDING)
+    score           Float?
+    startedAt       DateTime?
+    completedAt     DateTime?
+    createdAt       DateTime        @default(now())
+    updatedAt       DateTime        @updatedAt
+    vulnerabilities Vulnerability[]
+    reports         Report[]
+}
+
+model Vulnerability {
+    id          String   @id @default(uuid())
+    scanId      String
+    scan        Scan     @relation(fields: [scanId], references: [id])
+    title       String
+    description String
+    severity    String // LOW, MEDIUM, HIGH, CRITICAL
+    cvssScore   Float?
+    mitigation  String?
+    isFixed     Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+}
+
+model Report {
+    id        String   @id @default(uuid())
+    scanId    String
+    scan      Scan     @relation(fields: [scanId], references: [id])
+    format    String // PDF, JSON
+    content   String   @db.Text
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
